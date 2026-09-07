@@ -1,5 +1,7 @@
-from sqlalchemy import Column, String, ForeignKey, Numeric, DateTime, Date, BigInteger
-from sqlalchemy.dialects.postgresql import JSON
+import uuid
+from sqlalchemy import Column, String, ForeignKey, Numeric, DateTime, Date, BigInteger, Float, ARRAY
+from sqlalchemy.dialects.postgresql import JSON, UUID
+from sqlalchemy.orm import relationship
 from database import Base
 
 '''
@@ -47,3 +49,36 @@ class MarketData(Base):
     low_price = Column(Numeric)
     volume = Column(BigInteger)
     data_source = Column(String)
+
+# -------------------------------------------------------------
+# MARKET DATA SNAPSHOT MODELS (Stage 4)
+# -------------------------------------------------------------
+
+class DataSnapshot(Base):
+    __tablename__ = "data_snapshots"
+
+    snapshot_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    created_at = Column(DateTime, nullable=False)
+    ticker_list = Column(ARRAY(String), nullable=False)
+
+    means = relationship("AssetMean", back_populates="snapshot", cascade="all, delete-orphan")
+    covariances = relationship("AssetCovariance", back_populates="snapshot", cascade="all, delete-orphan")
+
+class AssetMean(Base):
+    __tablename__ = "asset_means"
+
+    snapshot_id = Column(UUID(as_uuid=True), ForeignKey("data_snapshots.snapshot_id"), primary_key=True)
+    ticker = Column(String, primary_key=True)
+    mean_return = Column(Float, nullable=False)
+
+    snapshot = relationship("DataSnapshot", back_populates="means")
+
+class AssetCovariance(Base):
+    __tablename__ = "asset_covariances"
+
+    snapshot_id = Column(UUID(as_uuid=True), ForeignKey("data_snapshots.snapshot_id"), primary_key=True)
+    ticker_i = Column(String, primary_key=True)
+    ticker_j = Column(String, primary_key=True)
+    cov_value = Column(Float, nullable=False)
+
+    snapshot = relationship("DataSnapshot", back_populates="covariances")
