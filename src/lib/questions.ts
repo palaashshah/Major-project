@@ -14,8 +14,7 @@ export const questions: Question[] = [
         options: [
             { label: "0 - 4 Years", points: 3 },
             { label: "5 - 10 Years", points: 6 },
-            { label: "11 - 20 Years", points: 9 },
-            { label: "More than 20 Years", points: 12 }
+            { label: "11 - 20 Years", points: 9 }
         ]
     },
     {
@@ -94,5 +93,17 @@ export const questions: Question[] = [
             { label: "Prefers strong growth, accepts moderate losses", points: 7 },
             { label: "Prefers maximum returns, accepts significant losses", points: 9 }
         ]
+    },
+    {
+        id: 13,
+        question: "Do you have an emergency fund (savings of at least three months’ after-tax income)?",
+        options: [
+            { label: "I do not have an emergency fund", points: 0 },
+            { label: "Yes, but less than 3 months", points: 3 },
+            { label: "Yes, about 3 months", points: 6 },
+            { label: "Yes, about 6 months", points: 9 },
+            { label: "Yes, more than 6 months", points: 12 }
+        ]
     }
+
 ];
