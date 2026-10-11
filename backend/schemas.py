@@ -7,6 +7,7 @@ from pydantic import BaseModel # a high-performance Python library for data vali
                                # the primary class used to define data schemas, ensuring data conforms to specified types and constraints
 from typing import Optional # When a field is Optional, it means it's not required — if you don't send it, it just becomes None.
 from datetime import datetime
+from uuid import UUID
 
 class InvestorCreate(BaseModel):
     # fields the user sends when creating an investor
@@ -17,6 +18,7 @@ class InvestorCreate(BaseModel):
     investment_horizon: Optional[str] = None
     risk_score: Optional[str] = None
     preferences_constraints: Optional[dict] = None
+    risk_answers: Optional[dict[int, int]] = None   # {question_id: option_index}; scored by the server
     assigned_manager_id: str
 
 class InvestorUpdate(BaseModel):
@@ -77,3 +79,70 @@ class InteractionResponse(BaseModel):
     class Config:
         from_attributes = True
         # is you telling Pydantic: "Hey, if someone hands you a SQLAlchemy object instead of a dict, you're allowed to read its attributes directly."
+
+class RiskAnswers(BaseModel):
+    # what the frontend sends: which option was picked for each question
+    answers: dict[int, int]
+
+class RiskScoreResponse(BaseModel):
+    # what the backend sends back after scoring
+    capacity_score: int
+    tolerance_score: int
+    score: int
+    limited_by: str
+    bucket: str
+    horizon: str
+    min_equity: float
+    max_equity: float
+    notes: list[str]
+    questionnaire_version: str
+
+class RiskAssessmentResponse(RiskScoreResponse):
+    # a saved assessment: the score plus who, when and the raw answers
+    id: str
+    investor_id: str
+    created_at: datetime
+    answers: dict
+
+    class Config:
+        from_attributes = True
+
+class OptimizeRequest(BaseModel):
+    investor_id: str
+    snapshot_id: Optional[UUID] = None      # leave out to use the newest snapshot
+    requested_by: Optional[str] = None      # manager id; defaults to the assigned manager
+
+class MetricsRequest(BaseModel):
+    investor_id: str
+    weights: dict[str, float]               # {"GOLDBEES.NS": 0.35, ...}
+    snapshot_id: Optional[UUID] = None
+
+class MetricsResponse(BaseModel):
+    expected_return: float
+    volatility: float
+    sharpe: float
+    binding: list[str]
+    violations: list[str]
+
+class PortfolioResponse(BaseModel):
+    id: str
+    investor_id: str
+    assessment_id: str
+    snapshot_id: UUID
+    created_at: datetime
+    created_by: Optional[str] = None
+    status: str
+    constraints: dict
+    excluded_sectors: list[str]
+    unmatched_exclusions: list[str]
+    risk_free_rate: float
+    objective_used: str
+    weights: dict[str, float]
+    expected_return: float
+    volatility: float
+    sharpe: float
+    binding: list[str]
+
+    class Config:
+        from_attributes = True
+

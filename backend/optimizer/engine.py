@@ -75,18 +75,18 @@ def evaluate_constraints(weights, volatility, bucket, excluded_sectors=frozenset
         if w > TOL and ASSET_SECTOR.get(ticker) in excluded_sectors:
             violations.append(f"{ticker} is in an excluded sector ({ASSET_SECTOR[ticker]})")
 
-    # Equity: upper limit
+        # Equity: upper limit
     equity = class_weight(weights, {EQUITY_CLASS})
     if equity > bucket.max_equity + TOL:
-        violations.append(f"Equity {equity:.1%} exceeds the {bucket.max_equity:.0%} limit for {bucket.name}")
+        violations.append(f"Equity {equity:.1%} exceeds the {bucket.max_equity:.1%} limit for {bucket.name}")
     elif equity > bucket.max_equity - TOL:
-        binding.append(f"Equity capped at {bucket.max_equity:.0%} ({bucket.name})")
+        binding.append(f"Equity capped at {bucket.max_equity:.1%} ({bucket.name})")
 
     # Equity: lower limit (the "band" that keeps buckets distinct)
     if equity < bucket.min_equity - TOL:
-        violations.append(f"Equity {equity:.1%} is below the {bucket.min_equity:.0%} minimum for {bucket.name}")
+        violations.append(f"Equity {equity:.1%} is below the {bucket.min_equity:.1%} minimum for {bucket.name}")
     elif bucket.min_equity > 0 and equity < bucket.min_equity + TOL:
-        binding.append(f"Equity held at the {bucket.min_equity:.0%} minimum ({bucket.name})")
+        binding.append(f"Equity held at the {bucket.min_equity:.1%} minimum ({bucket.name})")
 
     # Defensive: lower limit
     defensive = class_weight(weights, DEFENSIVE_CLASSES)
