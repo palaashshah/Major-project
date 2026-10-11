@@ -12,6 +12,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from database import SessionLocal, engine, Base
 from models import DataSnapshot, AssetMean, AssetCovariance
+from models import DataSnapshot, AssetMean, AssetCovariance, MarketData
 
 UNIVERSE = [
     "NIFTYBEES.NS",     # broad-market equity
@@ -36,7 +37,7 @@ def download_prices(tickers: list[str], period: str = "5y") -> pd.DataFrame:
     Downloads price data for the given tickers and returns
     a DataFrame of closing prices only: dates as index, one column per ticker.
     """
-    data = yf.download(tickers, period = period)
+    data = yf.download(tickers, period=period, auto_adjust=True)
     return (data['Close'])
 
 # prices = download_prices(UNIVERSE)
@@ -169,6 +170,29 @@ def load_snapshot(db: Session, snapshot_id: uuid.UUID) -> tuple[pd.Series, pd.Da
 
     return mu, cov
 
+def save_prices(db: Session, prices: pd.DataFrame) -> int:
+    """
+    Stores daily closing prices, replacing what was stored for these tickers.
+    WHY replace: adjusted prices are revised whenever a dividend is paid, so
+    mixing an old download with a new one would give an inconsistent series.
+    """
+    tickers = list(prices.columns)
+    db.query(MarketData).filter(MarketData.asset_symbol.in_(tickers)).delete(synchronize_session=False)
+
+    rows = []
+    for ticker in tickers:
+        for day, price in prices[ticker].dropna().items():
+            rows.append({
+                "id": f"{ticker}|{day.date()}",
+                "asset_symbol": ticker,
+                "date": day.date(),
+                "close_price": float(price),
+                "data_source": "yfinance",
+            })
+    db.bulk_insert_mappings(MarketData, rows)
+    db.commit()
+    return len(rows)
+
 def main():
     # 1. Ensure DB tables exist
     Base.metadata.create_all(bind=engine)
@@ -182,6 +206,8 @@ def main():
 
     db = SessionLocal()
     try:
+        saved = save_prices(db, prices)
+        print(f"Saved {saved} daily prices.")
         print("Saving snapshot to PostgreSQL...")
         snapshot_id = save_snapshot(db, mu, cov)
         print(f"Successfully saved snapshot! Snapshot ID: {snapshot_id}")

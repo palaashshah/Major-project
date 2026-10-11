@@ -5,9 +5,10 @@ Pydantic reads this to validate requests.
 
 from pydantic import BaseModel # a high-performance Python library for data validation and settings management. BaseModel is 
                                # the primary class used to define data schemas, ensuring data conforms to specified types and constraints
-from typing import Optional # When a field is Optional, it means it's not required — if you don't send it, it just becomes None.
+from typing import Literal, Optional # When a field is Optional, it means it's not required — if you don't send it, it just becomes None.
 from datetime import datetime
 from uuid import UUID
+from datetime import date
 
 class InvestorCreate(BaseModel):
     # fields the user sends when creating an investor
@@ -163,3 +164,53 @@ class RationaleResponse(BaseModel):
     notes: list[str]
     disclaimer: str
     text: str            # the whole explanation as one block
+
+class ManagerDecisionRequest(BaseModel):
+    decision: Literal["approved", "rejected"]
+    decided_by: str                        # manager id
+    reason: Optional[str] = None           # required when rejecting
+
+class ClientDecisionRequest(BaseModel):
+    decision: Literal["accepted", "declined"]
+    recorded_by: str                       # the manager logging the client's answer
+    notes: Optional[str] = None
+    amount: Optional[float] = None         # invested amount; defaults to the investor's total_aum
+
+class PortfolioDecisionResponse(BaseModel):
+    id: str
+    portfolio_id: str
+    timestamp: datetime
+    actor: str
+    decision: str
+    reason: Optional[str] = None
+    recorded_by: str
+    amount: Optional[float] = None
+
+    class Config:
+        from_attributes = True
+
+class HoldingValuationResponse(BaseModel):
+    ticker: str
+    target_weight: float
+    start_price: float
+    latest_price: float
+    value: float
+    current_weight: float
+    drift: float
+    breached: bool
+    basis: str                  # "price" or "accrual"
+
+class ValuationResponse(BaseModel):
+    portfolio_id: str
+    investor_id: str
+    hypothetical: bool          # true when an invested_on date was supplied
+    start_date: date
+    as_of_date: date
+    amount: float
+    current_value: float
+    gain: float
+    gain_pct: float
+    drift_threshold: float
+    rebalancing_suggested: bool
+    cash_rate: Optional[float] = None   # yearly rate used to accrue cash holdings
+    holdings: list[HoldingValuationResponse]

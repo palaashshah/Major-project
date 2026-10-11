@@ -147,3 +147,17 @@ class AuditLog(Base):
     reason = Column(String)
     before = Column(JSON)
     after = Column(JSON)
+
+class PortfolioDecision(Base):
+    """One decision about a portfolio, by the manager or the client.
+    Rows are only ever added, so this is the approval trail."""
+    __tablename__ = "portfolio_decisions"
+
+    id = Column(String, primary_key=True)
+    portfolio_id = Column(String, ForeignKey("portfolios.id"), nullable=False, index=True)
+    timestamp = Column(DateTime, nullable=False)
+    actor = Column(String, nullable=False)         # manager | client
+    decision = Column(String, nullable=False)      # approved | rejected | accepted | declined
+    reason = Column(String)                        # manager's reason or client's notes
+    recorded_by = Column(String, nullable=False)   # the user who entered it
+    amount = Column(Numeric)                       # invested amount, on acceptance only

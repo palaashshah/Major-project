@@ -1,0 +1,180 @@
+==============================================================================
+1. Cautious saver
+Lowest answers almost everywhere.
+==============================================================================
+Recommended portfolio: expected return 9.45%, volatility 3.52%, Sharpe ratio 1.10.
+
+Investor profile
+- Risk capacity scored 9 and risk tolerance scored 0, each out of 100.
+- Tolerance is the lower of the two, so it sets the risk score of 0.
+- A score of 0 falls in the Conservative bucket (0 to 20).
+
+Rules applied
+- The score sets an equity target of 10.0%. The optimizer was allowed 8.0% to 12.0%.
+- Volatility could not exceed 8%, at least 60% had to be in defensive assets, and no single instrument could exceed 35%.
+- Within those limits the optimizer chose the mix with the lowest volatility.
+- Return and risk estimates come from data snapshot 105378d6-5164-4776-a5d4-88bbfb6b31f3.
+
+Limits that shaped the result
+- LIQUIDBEES.NS is at the 35% per-asset cap
+- SETF10GILT.NS is at the 35% per-asset cap
+- Equity capped at 12.0% (Conservative)
+
+What each holding contributes
+- LIQUIDBEES.NS (cash): 35.0% of the portfolio, 1.23 points of expected return, 1% of the risk
+- SETF10GILT.NS (debt): 35.0% of the portfolio, 1.80 points of expected return, 20% of the risk
+- GOLDBEES.NS (gold): 18.0% of the portfolio, 4.84 points of expected return, 58% of the risk
+- PHARMABEES.NS (equity): 9.4% of the portfolio, 1.41 points of expected return, 17% of the risk
+- NIFTYBEES.NS (equity): 1.7% of the portfolio, 0.14 points of expected return, 3% of the risk
+- ITBEES.NS (equity): 0.9% of the portfolio, 0.02 points of expected return, 2% of the risk
+
+Expected return and risk are estimates from historical data. They are not forecasts or guarantees.
+
+==============================================================================
+2. Balanced professional
+Middle-to-high answers, long horizon.
+==============================================================================
+Recommended portfolio: expected return 17.39%, volatility 8.69%, Sharpe ratio 1.36.
+
+Investor profile
+- Risk capacity scored 73 and risk tolerance scored 61, each out of 100.
+- Tolerance is the lower of the two, so it sets the risk score of 61.
+- A score of 61 falls in the Growth bucket (61 to 80).
+
+Rules applied
+- The score sets an equity target of 58.8%. The optimizer was allowed 56.8% to 60.8%.
+- Volatility could not exceed 18%, at least 15% had to be in defensive assets, and no single instrument could exceed 35%.
+- Within those limits the optimizer chose the mix with the highest return per unit of risk (maximum Sharpe ratio), using a risk-free rate of 5.57%.
+- Return and risk estimates come from data snapshot 105378d6-5164-4776-a5d4-88bbfb6b31f3.
+
+Limits that shaped the result
+- GOLDBEES.NS is at the 35% per-asset cap
+- PHARMABEES.NS is at the 35% per-asset cap
+- Equity held at the 56.8% minimum (Growth)
+
+What each holding contributes
+- GOLDBEES.NS (gold): 35.0% of the portfolio, 9.42 points of expected return, 33% of the risk
+- PHARMABEES.NS (equity): 35.0% of the portfolio, 5.24 points of expected return, 39% of the risk
+- BANKBEES.NS (equity): 19.8% of the portfolio, 2.16 points of expected return, 25% of the risk
+- LIQUIDBEES.NS (cash): 8.2% of the portfolio, 0.29 points of expected return, almost none of the risk
+- JUNIORBEES.NS (equity): 2.0% of the portfolio, 0.28 points of expected return, 3% of the risk
+
+Expected return and risk are estimates from historical data. They are not forecasts or guarantees.
+
+==============================================================================
+3. Aggressive long-term investor
+Top answers everywhere.
+==============================================================================
+Recommended portfolio: expected return 15.02%, volatility 12.28%, Sharpe ratio 0.77.
+
+Investor profile
+- Risk capacity scored 100 and risk tolerance scored 100, each out of 100.
+- The two are equal, so the risk score is 100.
+- A score of 100 falls in the Aggressive bucket (81 to 100).
+
+Rules applied
+- The score sets an equity target of 90.0%. The optimizer was allowed 88.0% to 92.0%.
+- Volatility could not exceed 22%, at least 5% had to be in defensive assets, and no single instrument could exceed 35%.
+- Within those limits the optimizer chose the mix with the highest return per unit of risk (maximum Sharpe ratio), using a risk-free rate of 5.57%.
+- Return and risk estimates come from data snapshot 105378d6-5164-4776-a5d4-88bbfb6b31f3.
+
+Limits that shaped the result
+- PHARMABEES.NS is at the 35% per-asset cap
+- Equity held at the 88.0% minimum (Aggressive)
+
+What each holding contributes
+- PHARMABEES.NS (equity): 35.0% of the portfolio, 5.24 points of expected return, 34% of the risk
+- BANKBEES.NS (equity): 28.5% of the portfolio, 3.11 points of expected return, 30% of the risk
+- JUNIORBEES.NS (equity): 24.5% of the portfolio, 3.44 points of expected return, 34% of the risk
+- GOLDBEES.NS (gold): 12.0% of the portfolio, 3.23 points of expected return, 1% of the risk
+
+Expected return and risk are estimates from historical data. They are not forecasts or guarantees.
+
+==============================================================================
+4. Same as 3, but needs the money soon
+Shows the horizon rule capping equity.
+==============================================================================
+Recommended portfolio: expected return 14.91%, volatility 6.14%, Sharpe ratio 1.52.
+
+Investor profile
+- Risk capacity scored 82 and risk tolerance scored 100, each out of 100.
+- Capacity is the lower of the two, so it sets the risk score of 82.
+- A score of 82 falls in the Aggressive bucket (81 to 100).
+
+Rules applied
+- The score alone would target 75.6% in equity, but the short investment horizon caps equity at 30%. The optimizer was allowed 26.0% to 30.0%.
+- Volatility could not exceed 22%, at least 5% had to be in defensive assets, and no single instrument could exceed 35%.
+- Within those limits the optimizer chose the mix with the highest return per unit of risk (maximum Sharpe ratio), using a risk-free rate of 5.57%.
+- Return and risk estimates come from data snapshot 105378d6-5164-4776-a5d4-88bbfb6b31f3.
+
+Limits that shaped the result
+- GOLDBEES.NS is at the 35% per-asset cap
+- LIQUIDBEES.NS is at the 35% per-asset cap
+
+What each holding contributes
+- GOLDBEES.NS (gold): 35.0% of the portfolio, 9.42 points of expected return, 65% of the risk
+- LIQUIDBEES.NS (cash): 35.0% of the portfolio, 1.23 points of expected return, almost none of the risk
+- PHARMABEES.NS (equity): 27.6% of the portfolio, 4.14 points of expected return, 34% of the risk
+- SETF10GILT.NS (debt): 2.4% of the portfolio, 0.12 points of expected return, almost none of the risk
+
+Notes for review
+- Equity limited to 30% because the investment horizon is short.
+
+Expected return and risk are estimates from historical data. They are not forecasts or guarantees.
+
+==============================================================================
+5. Strong situation, weak nerves, excludes pharma
+Shows the lower sub-score governing, and a sector exclusion.
+==============================================================================
+Recommended portfolio: expected return 14.81%, volatility 7.78%, Sharpe ratio 1.19.
+
+Investor profile
+- Risk capacity scored 100 and risk tolerance scored 28, each out of 100.
+- Tolerance is the lower of the two, so it sets the risk score of 28.
+- A score of 28 falls in the Cautious bucket (21 to 40).
+
+Rules applied
+- The score sets an equity target of 32.4%. The optimizer was allowed 30.4% to 34.4%.
+- Volatility could not exceed 11%, at least 45% had to be in defensive assets, and no single instrument could exceed 35%.
+- Within those limits the optimizer chose the mix with the highest return per unit of risk (maximum Sharpe ratio), using a risk-free rate of 5.57%.
+- Excluded at the investor's request: pharma (PHARMABEES.NS removed).
+- Return and risk estimates come from data snapshot 105378d6-5164-4776-a5d4-88bbfb6b31f3.
+
+Limits that shaped the result
+- GOLDBEES.NS is at the 35% per-asset cap
+- Equity held at the 30.4% minimum (Cautious)
+
+What each holding contributes
+- GOLDBEES.NS (gold): 35.0% of the portfolio, 9.42 points of expected return, 51% of the risk
+- JUNIORBEES.NS (equity): 22.1% of the portfolio, 3.11 points of expected return, 36% of the risk
+- LIQUIDBEES.NS (cash): 20.1% of the portfolio, 0.71 points of expected return, almost none of the risk
+- SETF10GILT.NS (debt): 14.5% of the portfolio, 0.75 points of expected return, 3% of the risk
+- BANKBEES.NS (equity): 5.2% of the portfolio, 0.56 points of expected return, 7% of the risk
+- NIFTYBEES.NS (equity): 3.1% of the portfolio, 0.26 points of expected return, 3% of the risk
+
+Notes for review
+- Capacity (100) and tolerance (28) differ widely; discuss with the investor.
+
+Expected return and risk are estimates from historical data. They are not forecasts or guarantees.
+
+==============================================================================
+ALL FIVE SIDE BY SIDE (columns are the case numbers)
+==============================================================================
+                  1     2     3     4     5
+BANKBEES.NS     0.0  19.8  28.5   0.0   5.2
+GOLDBEES.NS    18.0  35.0  12.0  35.0  35.0
+ITBEES.NS       0.9   0.0   0.0   0.0   0.0
+JUNIORBEES.NS   0.0   2.0  24.5   0.0  22.1
+LIQUIDBEES.NS  35.0   8.2   0.0  35.0  20.1
+NIFTYBEES.NS    1.7   0.0   0.0   0.0   3.1
+PHARMABEES.NS   9.4  35.0  35.0  27.6   0.0
+SETF10GILT.NS  35.0   0.0   0.0   2.4  14.5
+
+               1     2      3     4     5
+score        0.0  61.0  100.0  82.0  28.0
+equity_min   8.0  56.8   88.0  26.0  30.4
+equity_max  12.0  60.8   92.0  30.0  34.4
+return       9.4  17.4   15.0  14.9  14.8
+volatility   3.5   8.7   12.3   6.1   7.8
+
+(weights, equity limits, return and volatility are in percent)

@@ -72,3 +72,7 @@ HORIZON_EQUITY_CEILING = {"short": 0.30, "medium": 0.60, "long": 1.00}
 
 # Flag the profile for manager review when the sub-scores differ this much.
 SUBSCORE_GAP_FOR_REVIEW = 40
+
+# --- Drift monitoring ------------------------------------------------------
+# Flag a portfolio when any holding moves this far from its approved weight.
+DRIFT_THRESHOLD = 0.05
