@@ -23,9 +23,10 @@ from optimizer.engine import (
     optimize_portfolio,
     portfolio_metrics,
 )
-from schemas import MetricsRequest, MetricsResponse, OptimizeRequest, PortfolioResponse
+from schemas import MetricsRequest, MetricsResponse, OptimizeRequest, PortfolioResponse, RationaleResponse
 from scoring.scoring import constraints_for_score
 from scripts.data import load_snapshot
+from rationale.generator import build_rationale
 
 router = APIRouter(tags=["Optimization"])
 
@@ -149,3 +150,18 @@ def get_portfolio(portfolio_id: str, db: Session = Depends(get_db)):
     if not portfolio:
         raise HTTPException(status_code=404, detail="Portfolio not found")
     return portfolio
+
+@router.get("/portfolios/{portfolio_id}/rationale", response_model=RationaleResponse)
+def get_rationale(portfolio_id: str, db: Session = Depends(get_db)):
+    """The explanation for one saved portfolio, rebuilt from stored values."""
+    portfolio = db.query(Portfolio).filter(Portfolio.id == portfolio_id).first()
+    if not portfolio:
+        raise HTTPException(status_code=404, detail="Portfolio not found")
+    assessment = db.query(RiskAssessment).filter(RiskAssessment.id == portfolio.assessment_id).first()
+    try:
+        mu, cov = load_snapshot(db, portfolio.snapshot_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+
+    rationale = build_rationale(assessment, portfolio, mu, cov)
+    return {"portfolio_id": portfolio.id, **asdict(rationale), "text": rationale.as_text()}

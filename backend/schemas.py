@@ -146,3 +146,20 @@ class PortfolioResponse(BaseModel):
     class Config:
         from_attributes = True
 
+class ContributionResponse(BaseModel):
+    ticker: str
+    asset_class: str
+    weight: float
+    return_contribution: float
+    risk_share: float
+
+class RationaleResponse(BaseModel):
+    portfolio_id: str
+    summary: str
+    profile: list[str]
+    rules: list[str]
+    binding: list[str]
+    contributions: list[ContributionResponse]
+    notes: list[str]
+    disclaimer: str
+    text: str            # the whole explanation as one block
