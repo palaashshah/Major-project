@@ -90,3 +90,23 @@ export async function getAllInteractions(){
     const response = await fetch(`${API_BASE}/interactions/`)
     return response.json();
 }
+
+// Optimizer endpoint — not yet implemented on the backend.
+// Returns null on any failure so callers fall back to defaults.
+export type OptimizerResult = {
+    weights: Record<string, number>       // ticker → percentage (sums to 100)
+    expected_return: number               // annualized, %
+    volatility: number                    // annualized, %
+    sharpe: number
+    snapshot_id?: string
+}
+
+export async function getOptimizedPortfolio(investorId: string): Promise<OptimizerResult | null> {
+    try {
+        const response = await fetch(`${API_BASE}/optimizer/${investorId}`)
+        if (!response.ok) return null
+        return await response.json()
+    } catch {
+        return null
+    }
+}

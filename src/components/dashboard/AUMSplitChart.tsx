@@ -1,21 +1,17 @@
-// AUMSplitChart.tsx — donut chart showing AUM split across asset classes
-// PLACEHOLDER — uses dummy data until optimizer is wired in
+// AUMSplitChart.tsx — donut showing AUM split across the 8-ETF universe.
+// When no data is passed, uses the moderator-profile default from lib/etfs.ts.
+import { ETFS, defaultWeightsFor } from '@/lib/etfs'
 
 type AUMSplitProps = {
-  // optional real data — if not passed, shows placeholder
   data?: { label: string; percentage: number; color: string }[]
 }
 
-const PLACEHOLDER_DATA = [
-  { label: 'Stocks',      percentage: 35, color: '#6D8196' },
-  { label: 'Bonds',       percentage: 25, color: '#97C459' },
-  { label: 'Real Estate', percentage: 15, color: '#5DCAA5' },
-  { label: 'Commodities', percentage: 10, color: '#EF9F27' },
-  { label: 'Crypto',      percentage: 10, color: '#a0b4c4' },
-  { label: 'Currency',    percentage: 5,  color: '#F09595' },
-]
+const DEFAULT_DATA = (() => {
+  const w = defaultWeightsFor('moderator')
+  return ETFS.map(e => ({ label: e.ticker, percentage: w[e.ticker] ?? 0, color: e.color }))
+})()
 
-export default function AUMSplitChart({ data = PLACEHOLDER_DATA }: AUMSplitProps) {
+export default function AUMSplitChart({ data = DEFAULT_DATA }: AUMSplitProps) {
   const size = 120
   const radius = 45
   const cx = size / 2
@@ -30,7 +26,7 @@ export default function AUMSplitChart({ data = PLACEHOLDER_DATA }: AUMSplitProps
       padding: '1.25rem',
     }}>
       <p style={{ fontSize: '12px', color: '#CBCBCB', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '1rem' }}>
-        AUM Split <span style={{ color: '#6D8196', fontSize: '10px' }}>· placeholder</span>
+        AUM Split <span style={{ color: '#6D8196', fontSize: '10px' }}>· 8-ETF universe</span>
       </p>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
@@ -68,7 +64,7 @@ export default function AUMSplitChart({ data = PLACEHOLDER_DATA }: AUMSplitProps
             <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: segment.color, flexShrink: 0 }} />
-                <span style={{ fontSize: '12px', color: '#CBCBCB' }}>{segment.label}</span>
+                <span style={{ fontSize: '12px', color: '#CBCBCB', fontFamily: 'monospace' }}>{segment.label}</span>
               </div>
               <span style={{ fontSize: '12px', fontWeight: 500, color: '#FFFFE3' }}>{segment.percentage}%</span>
             </div>

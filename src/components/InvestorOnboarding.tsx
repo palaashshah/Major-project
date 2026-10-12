@@ -98,44 +98,17 @@ export default function InvestorOnboarding() {
         }
     }
 
-    // full screen wrapper — all steps share this dark background
     const screen = (children: React.ReactNode) => (
         <div style={{
-            width: "100vw", minHeight: "100vh",
+            width: "100%", minHeight: "100%",
             backgroundColor: "var(--charcoal)",
-            display: "flex"
+            display: "flex",
+            flex: 1,
         }}>
-            {/* left branding panel */}
             <div style={{
-                width: "380px", flexShrink: 0,
-                borderRight: "1px solid rgba(255,255,255,0.08)",
-                padding: "48px 40px",
-                display: "flex", flexDirection: "column", justifyContent: "space-between"
-            }}>
-                <div>
-                    <p style={{
-                        fontFamily: "var(--font-heading)", fontSize: "13px",
-                        fontWeight: 700, letterSpacing: "0.15em",
-                        textTransform: "uppercase", color: "var(--ivory)"
-                    }}>OpenGlass</p>
-                    <p style={{
-                        fontFamily: "var(--font-body)", fontSize: "12px",
-                        color: "rgba(255,255,255,0.35)", marginTop: "4px"
-                    }}>Portfolio Management</p>
-                </div>
-                <p style={{
-                    fontFamily: "var(--font-body)", fontSize: "12px",
-                    color: "rgba(255,255,255,0.25)", lineHeight: 1.6
-                }}>
-                    Your information is encrypted and only shared with your assigned relationship manager.
-                </p>
-            </div>
-
-            {/* right content panel */}
-            <div style={{
-                flex: 1, padding: "64px 72px",
-                display: "flex", flexDirection: "column", justifyContent: "center",
-                maxWidth: "640px"
+                flex: 1, padding: "48px 56px",
+                display: "flex", flexDirection: "column", justifyContent: "flex-start",
+                maxWidth: "720px"
             }}>
                 {children}
             </div>

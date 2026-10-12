@@ -1,5 +1,5 @@
+import AppShell from "@/components/AppShell"
+
 export default function Home() {
-  return (
-    <p>HI</p>
-  );
+  return <AppShell />
 }

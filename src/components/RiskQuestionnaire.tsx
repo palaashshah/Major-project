@@ -56,7 +56,7 @@ export default function RiskQuestionnaire({ onComplete }: Props) {
     // full screen split — left sidebar + right content
     return (
         <div style={{
-            display: "flex", height: "100vh", width: "100vw",
+            display: "flex", minHeight: "100%", width: "100%", flex: 1,
             backgroundColor: "var(--charcoal)"
         }}>
             {/* ── LEFT SIDEBAR ── */}
