@@ -214,3 +214,22 @@ class ValuationResponse(BaseModel):
     rebalancing_suggested: bool
     cash_rate: Optional[float] = None   # yearly rate used to accrue cash holdings
     holdings: list[HoldingValuationResponse]
+
+class AdjustRequest(BaseModel):
+    weights: dict[str, float]      # {"GOLDBEES.NS": 0.33, ...}; must add up to 1
+    adjusted_by: str               # manager id
+    reason: str                    # why the weights were changed
+
+class AuditLogResponse(BaseModel):
+    id: str
+    timestamp: datetime
+    user_id: Optional[str] = None
+    action: str
+    entity_type: str
+    entity_id: str
+    reason: Optional[str] = None
+    before: Optional[dict] = None
+    after: Optional[dict] = None
+
+    class Config:
+        from_attributes = True

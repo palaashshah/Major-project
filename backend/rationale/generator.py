@@ -24,6 +24,8 @@ OBJECTIVE_TEXT = {
     "min_volatility": "Within those limits the optimizer chose the mix with the lowest volatility.",
     "max_return_at_volatility_cap": ("The best risk-adjusted mix exceeded the volatility limit, "
                                      "so the optimizer chose the highest-return mix inside it."),
+    "manual_adjustment": ("The weights were set by the manager, adjusting the optimizer's "
+                          "proposal. They were checked against the same limits.")
 }
 
 

@@ -14,7 +14,7 @@ import pandas as pd
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from config.risk_constraints import ASSETS, PER_ASSET_CAP, RISK_FREE_RATE
+from config.risk_constraints import ASSETS, PER_ASSET_CAP, RISK_FREE_RATE, BucketConstraints
 from database import get_db
 from models import AuditLog, DataSnapshot, Investor, Portfolio, RiskAssessment
 from optimizer.engine import (
@@ -23,7 +23,10 @@ from optimizer.engine import (
     optimize_portfolio,
     portfolio_metrics,
 )
-from schemas import MetricsRequest, MetricsResponse, OptimizeRequest, PortfolioResponse, RationaleResponse
+from schemas import (
+    AdjustRequest, MetricsRequest, MetricsResponse, OptimizeRequest,
+    PortfolioResponse, RationaleResponse,
+)
 from scoring.scoring import constraints_for_score
 from scripts.data import load_snapshot
 from rationale.generator import build_rationale
@@ -165,3 +168,83 @@ def get_rationale(portfolio_id: str, db: Session = Depends(get_db)):
 
     rationale = build_rationale(assessment, portfolio, mu, cov)
     return {"portfolio_id": portfolio.id, **asdict(rationale), "text": rationale.as_text()}
+
+def stored_constraints(portfolio: Portfolio) -> BucketConstraints:
+    """Rebuild the limits a portfolio was created under, from what was saved with it."""
+    c = portfolio.constraints
+    return BucketConstraints(
+        name=c["name"], score_min=c["score_min"], score_max=c["score_max"],
+        max_equity=c["max_equity"], max_volatility=c["max_volatility"],
+        min_defensive=c["min_defensive"], objective=c["objective"],
+        min_equity=c["min_equity"])
+
+
+@router.post("/portfolios/{portfolio_id}/adjust", response_model=PortfolioResponse)
+def adjust_weights(portfolio_id: str, body: AdjustRequest, db: Session = Depends(get_db)):
+    """Save manager-edited weights as a new proposed portfolio (PRD 5.6).
+    A portfolio that breaks any rule is refused, never saved silently."""
+    source = db.query(Portfolio).filter(Portfolio.id == portfolio_id).first()
+    if not source:
+        raise HTTPException(status_code=404, detail="Portfolio not found")
+    if source.status != "proposed":
+        raise HTTPException(
+            status_code=409,
+            detail=f"Only a proposed portfolio can be adjusted; this one is {source.status}.")
+    if not body.reason.strip():
+        raise HTTPException(status_code=422, detail="A reason is required to adjust weights.")
+
+    try:
+        mu, cov = load_snapshot(db, source.snapshot_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    unknown = sorted(set(body.weights) - set(mu.index))
+    if unknown:
+        raise HTTPException(status_code=422, detail=f"Unknown tickers: {unknown}")
+
+    weights = pd.Series(body.weights, dtype=float).reindex(mu.index).fillna(0.0).round(6)
+    constraints = stored_constraints(source)
+    expected_return, volatility, sharpe = portfolio_metrics(weights, mu, cov, source.risk_free_rate)
+    binding, violations = evaluate_constraints(
+        weights, volatility, constraints, frozenset(source.excluded_sectors))
+    if violations:
+        raise HTTPException(status_code=422, detail={
+            "message": "The adjusted weights break one or more rules, so they were not saved.",
+            "violations": violations})
+
+    now = datetime.now(timezone.utc)
+    adjusted = Portfolio(
+        id=str(uuid.uuid4()),
+        investor_id=source.investor_id,
+        assessment_id=source.assessment_id,
+        snapshot_id=source.snapshot_id,
+        created_at=now,
+        created_by=body.adjusted_by,
+        status="proposed",
+        constraints=source.constraints,
+        excluded_sectors=source.excluded_sectors,
+        unmatched_exclusions=source.unmatched_exclusions,
+        risk_free_rate=source.risk_free_rate,
+        objective_used="manual_adjustment",
+        weights={ticker: float(w) for ticker, w in weights.items()},
+        expected_return=expected_return,
+        volatility=volatility,
+        sharpe=sharpe,
+        binding=binding,
+    )
+    db.add(adjusted)
+    source.status = "superseded"
+
+    db.add(AuditLog(
+        id=str(uuid.uuid4()), timestamp=now, user_id=body.adjusted_by,
+        action="portfolio.adjusted", entity_type="portfolio", entity_id=adjusted.id,
+        reason=body.reason,
+        before={"portfolio_id": source.id, "weights": source.weights},
+        after={"portfolio_id": adjusted.id, "weights": adjusted.weights}))
+    db.add(AuditLog(
+        id=str(uuid.uuid4()), timestamp=now, user_id=body.adjusted_by,
+        action="portfolio.superseded", entity_type="portfolio", entity_id=source.id,
+        reason=f"Adjusted into portfolio {adjusted.id}",
+        before={"status": "proposed"}, after={"status": "superseded"}))
+    db.commit()
+    db.refresh(adjusted)
+    return adjusted
