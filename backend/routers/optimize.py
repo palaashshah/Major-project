@@ -14,7 +14,7 @@ import pandas as pd
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from config.risk_constraints import ASSETS, PER_ASSET_CAP, RISK_FREE_RATE, BucketConstraints
+from config.risk_constraints import ASSET_CAPS, ASSETS, PER_ASSET_CAP, RISK_FREE_RATE, BucketConstraints
 from database import get_db
 from models import AuditLog, DataSnapshot, Investor, Portfolio, RiskAssessment
 from optimizer.engine import (
@@ -96,7 +96,7 @@ def run_optimization(body: OptimizeRequest, db: Session = Depends(get_db)):
         created_at=now,
         created_by=body.requested_by or investor.assigned_manager_id,
         status="proposed",
-        constraints={**asdict(constraints), "per_asset_cap": PER_ASSET_CAP},
+        constraints={**asdict(constraints), "per_asset_cap": PER_ASSET_CAP, "asset_caps": dict(ASSET_CAPS)},
         excluded_sectors=matched,
         unmatched_exclusions=unmatched,
         risk_free_rate=result.risk_free_rate,

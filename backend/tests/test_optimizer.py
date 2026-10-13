@@ -66,3 +66,8 @@ def test_manual_edit_violations_are_flagged():
     w["NIFTYBEES.NS"] = 1.0
     _, violations = evaluate_constraints(w, 0.18, BUCKETS[0])
     assert violations
+
+def test_instrument_cap_is_respected():
+    mu, cov = synthetic_market()
+    result = optimize_portfolio(mu, cov, BUCKETS[2], asset_caps={"GOLDBEES.NS": 0.10})
+    assert result.weights["GOLDBEES.NS"] <= 0.10 + 1e-4

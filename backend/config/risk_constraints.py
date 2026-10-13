@@ -76,3 +76,13 @@ SUBSCORE_GAP_FOR_REVIEW = 40
 # --- Drift monitoring ------------------------------------------------------
 # Flag a portfolio when any holding moves this far from its approved weight.
 DRIFT_THRESHOLD = 0.05
+
+# # --- Per-instrument caps ---------------------------------------------------
+# # Lower caps for individual instruments, e.g. {"GOLDBEES.NS": 0.20}.
+# # Anything not listed uses PER_ASSET_CAP. Empty until the backtest justifies a value.
+# ASSET_CAPS: dict[str, float] = {}
+
+# Gold capped at 25% after the walk-forward backtest (Oct 2026). At 35% and
+# 30% the portfolios failed the risk-ordering check in 2025-26; 25% is the
+# highest cap that passed both acceptance checks in all three test years.
+ASSET_CAPS: dict[str, float] = {"GOLDBEES.NS": 0.25}

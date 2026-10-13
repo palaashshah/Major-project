@@ -105,6 +105,9 @@ def _rule_lines(assessment, portfolio) -> list[str]:
     lines.append(f"Volatility could not exceed {c['max_volatility']:.0%}, at least "
                  f"{c['min_defensive']:.0%} had to be in defensive assets, and no single "
                  f"instrument could exceed {c['per_asset_cap']:.0%}.")
+    
+    for ticker, cap in (c.get("asset_caps") or {}).items():
+        lines.append(f"{ticker} had its own lower cap of {cap:.0%}.")
 
     template = OBJECTIVE_TEXT.get(portfolio.objective_used)
     if template:

@@ -15,6 +15,7 @@ from pypfopt.efficient_frontier import EfficientFrontier
 from pypfopt.exceptions import OptimizationError
 
 from config.risk_constraints import (
+    ASSET_CAPS,
     ASSETS,
     DEFENSIVE_CLASSES,
     EQUITY_CLASS,
@@ -44,12 +45,19 @@ class PortfolioResult:
     binding: list[str]       # input for the rationale generator
 
 
+def cap_for(ticker: str, asset_caps=None) -> float:
+    """The most one instrument may hold: its own cap if it has one, never
+    more than the general per-asset cap."""
+    caps = ASSET_CAPS if asset_caps is None else asset_caps
+    return min(PER_ASSET_CAP, caps.get(ticker, PER_ASSET_CAP))
+
+
 def portfolio_metrics(weights: pd.Series, mu: pd.Series, cov: pd.DataFrame, rf: float):
     """Expected return, volatility and Sharpe ratio for any weight vector."""
     w = weights.reindex(mu.index).fillna(0.0).to_numpy()
-    ret = float(w @ mu.to_numpy()) # return
-    vol = float(np.sqrt(w @ cov.loc[mu.index, mu.index].to_numpy() @ w)) # volatility
-    sharpe = (ret - rf) / vol if vol > 0 else 0.0 
+    ret = float(w @ mu.to_numpy())
+    vol = float(np.sqrt(w @ cov.loc[mu.index, mu.index].to_numpy() @ w))
+    sharpe = (ret - rf) / vol if vol > 0 else 0.0
     return ret, vol, sharpe
 
 
@@ -57,7 +65,7 @@ def class_weight(weights: pd.Series, classes) -> float:
     return float(sum(w for t, w in weights.items() if ASSET_CLASS.get(t) in classes))
 
 
-def evaluate_constraints(weights, volatility, bucket, excluded_sectors=frozenset()):
+def evaluate_constraints(weights, volatility, bucket, excluded_sectors=frozenset(), asset_caps=None):
     """Return (binding, violations) as human-readable strings. Used for both
     optimizer output and manual edits, so a violating portfolio is never
     accepted silently."""
@@ -66,23 +74,24 @@ def evaluate_constraints(weights, volatility, bucket, excluded_sectors=frozenset
     if abs(float(weights.sum()) - 1.0) > TOL:
         violations.append(f"Weights sum to {weights.sum():.2%}, not 100%")
     for ticker, w in weights.items():
+        cap = cap_for(ticker, asset_caps)
         if w < -TOL:
             violations.append(f"{ticker} has a negative weight")
-        if w > PER_ASSET_CAP + TOL:
-            violations.append(f"{ticker} at {w:.1%} exceeds the {PER_ASSET_CAP:.0%} per-asset cap")
-        elif w > PER_ASSET_CAP - TOL:
-            binding.append(f"{ticker} is at the {PER_ASSET_CAP:.0%} per-asset cap")
+        if w > cap + TOL:
+            violations.append(f"{ticker} at {w:.1%} exceeds its {cap:.0%} cap")
+        elif w > cap - TOL:
+            binding.append(f"{ticker} is at its {cap:.0%} cap")
         if w > TOL and ASSET_SECTOR.get(ticker) in excluded_sectors:
             violations.append(f"{ticker} is in an excluded sector ({ASSET_SECTOR[ticker]})")
 
-        # Equity: upper limit
+    # Equity: upper limit
     equity = class_weight(weights, {EQUITY_CLASS})
     if equity > bucket.max_equity + TOL:
         violations.append(f"Equity {equity:.1%} exceeds the {bucket.max_equity:.1%} limit for {bucket.name}")
     elif equity > bucket.max_equity - TOL:
         binding.append(f"Equity capped at {bucket.max_equity:.1%} ({bucket.name})")
 
-    # Equity: lower limit (the "band" that keeps buckets distinct)
+    # Equity: lower limit (the "band" that keeps scores distinct)
     if equity < bucket.min_equity - TOL:
         violations.append(f"Equity {equity:.1%} is below the {bucket.min_equity:.1%} minimum for {bucket.name}")
     elif bucket.min_equity > 0 and equity < bucket.min_equity + TOL:
@@ -104,29 +113,34 @@ def evaluate_constraints(weights, volatility, bucket, excluded_sectors=frozenset
     return binding, violations
 
 
-def _precheck(allowed, bucket):
+def _precheck(allowed, bucket, asset_caps=None):
     """Catch structural infeasibility with a readable reason before solving."""
-    n_equity = sum(ASSET_CLASS[t] == EQUITY_CLASS for t in allowed)
-    n_non_equity = len(allowed) - n_equity
-    n_defensive = sum(ASSET_CLASS[t] in DEFENSIVE_CLASSES for t in allowed)
+    caps = {t: cap_for(t, asset_caps) for t in allowed}
+    total_room = sum(caps.values())
+    equity_room = sum(c for t, c in caps.items() if ASSET_CLASS[t] == EQUITY_CLASS)
+    non_equity_room = total_room - equity_room
+    defensive_room = sum(c for t, c in caps.items() if ASSET_CLASS[t] in DEFENSIVE_CLASSES)
 
-    if len(allowed) * PER_ASSET_CAP < 1 - TOL:
+    if total_room < 1 - TOL:
         raise InfeasiblePortfolioError(
-            f"Only {len(allowed)} instruments remain after exclusions; at "
-            f"{PER_ASSET_CAP:.0%} each they cannot reach 100%.")
-    if 1 - n_non_equity * PER_ASSET_CAP > bucket.max_equity + TOL:
+            f"The {len(allowed)} instruments left after exclusions can hold at most "
+            f"{total_room:.0%} between them, so they cannot reach 100%.")
+    if 1 - non_equity_room > bucket.max_equity + TOL:
         raise InfeasiblePortfolioError(
-            f"Too few non-equity instruments to keep equity within {bucket.max_equity:.0%}.")
-    if n_defensive * PER_ASSET_CAP < bucket.min_defensive - TOL:
+            f"Non-equity instruments can hold at most {non_equity_room:.0%}, so equity "
+            f"cannot stay within {bucket.max_equity:.1%}.")
+    if defensive_room < bucket.min_defensive - TOL:
         raise InfeasiblePortfolioError(
-            f"Too few defensive instruments to reach the {bucket.min_defensive:.0%} minimum.")
-    if n_equity * PER_ASSET_CAP < bucket.min_equity - TOL:
+            f"Defensive instruments can hold at most {defensive_room:.0%}, below the "
+            f"{bucket.min_defensive:.0%} minimum.")
+    if equity_room < bucket.min_equity - TOL:
         raise InfeasiblePortfolioError(
-            f"Too few equity instruments to reach the {bucket.min_equity:.0%} minimum for {bucket.name}.")
+            f"Equity instruments can hold at most {equity_room:.0%}, below the "
+            f"{bucket.min_equity:.1%} minimum for {bucket.name}.")
 
 
-def optimize_portfolio(mu, cov, bucket: BucketConstraints,
-                       excluded_sectors=frozenset(), rf: float = RISK_FREE_RATE) -> PortfolioResult:
+def optimize_portfolio(mu, cov, bucket: BucketConstraints, excluded_sectors=frozenset(),
+                       rf: float = RISK_FREE_RATE, asset_caps=None) -> PortfolioResult:
     if bucket.objective not in OBJECTIVES:
         raise ValueError(f"unknown objective {bucket.objective!r}")
     unknown = [t for t in mu.index if t not in ASSET_CLASS]
@@ -135,14 +149,15 @@ def optimize_portfolio(mu, cov, bucket: BucketConstraints,
 
     # Exclusions are zero-weight constraints: drop the assets, re-add as 0 later.
     allowed = [t for t in mu.index if ASSET_SECTOR[t] not in excluded_sectors]
-    _precheck(allowed, bucket)
+    _precheck(allowed, bucket, asset_caps)
     mu_a, cov_a = mu.loc[allowed], cov.loc[allowed, allowed]
     is_equity = [ASSET_CLASS[t] == EQUITY_CLASS for t in allowed]
     is_defensive = [ASSET_CLASS[t] in DEFENSIVE_CLASSES for t in allowed]
+    bounds = [(0.0, cap_for(t, asset_caps)) for t in allowed]   # one (min, max) per instrument
 
     def build():
         # A solved EfficientFrontier cannot be reused, so build fresh each time.
-        ef = EfficientFrontier(mu_a, cov_a, weight_bounds=(0, PER_ASSET_CAP))
+        ef = EfficientFrontier(mu_a, cov_a, weight_bounds=bounds)
         if any(is_equity):
             ef.add_constraint(lambda w: cp.sum(w[is_equity]) <= bucket.max_equity)
         if any(is_equity) and bucket.min_equity > 0:
@@ -176,7 +191,7 @@ def optimize_portfolio(mu, cov, bucket: BucketConstraints,
     weights = pd.Series(ef.clean_weights(), dtype=float).reindex(mu.index).fillna(0.0)
     weights = (weights / weights.sum()).round(6)
     ret, vol, sharpe = portfolio_metrics(weights, mu, cov, rf)
-    binding, violations = evaluate_constraints(weights, vol, bucket, excluded_sectors)
+    binding, violations = evaluate_constraints(weights, vol, bucket, excluded_sectors, asset_caps)
     if violations:
         raise InfeasiblePortfolioError("; ".join(violations))
 
