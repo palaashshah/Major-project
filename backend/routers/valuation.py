@@ -1,9 +1,10 @@
 """
-Valuation and drift endpoints.
+Valuation, drift and rebalancing endpoints.
 
-WHY: gives the manager the current paper value of an accepted portfolio and
+WHY: gives the manager the current paper value of an accepted portfolio,
 raises the "rebalancing suggested" flag when a holding drifts past the
-threshold. Reads stored prices only; never downloads.
+threshold, and lists the trades that would restore the approved weights.
+Reads stored prices only; never downloads and never trades.
 """
 from dataclasses import asdict
 from datetime import date
@@ -15,8 +16,8 @@ from sqlalchemy.orm import Session
 
 from database import get_db
 from models import MarketData, Portfolio, PortfolioDecision
-from schemas import ValuationResponse
-from valuation.valuation import value_portfolio
+from schemas import RebalancingResponse, ValuationResponse
+from valuation.valuation import Valuation, rebalancing_trades, value_portfolio
 
 router = APIRouter(tags=["Valuation"])
 
@@ -35,7 +36,14 @@ def load_prices(db: Session, tickers: list[str]) -> pd.DataFrame:
     return frame.pivot(index="date", columns="ticker", values="price").sort_index()
 
 
-def build_valuation(db: Session, portfolio: Portfolio, invested_on: Optional[date]) -> dict:
+def get_portfolio_or_404(db: Session, portfolio_id: str) -> Portfolio:
+    portfolio = db.query(Portfolio).filter(Portfolio.id == portfolio_id).first()
+    if not portfolio:
+        raise HTTPException(status_code=404, detail="Portfolio not found")
+    return portfolio
+
+
+def compute_valuation(db: Session, portfolio: Portfolio, invested_on: Optional[date]) -> Valuation:
     accepted = (
         db.query(PortfolioDecision)
         .filter(PortfolioDecision.portfolio_id == portfolio.id,
@@ -52,17 +60,19 @@ def build_valuation(db: Session, portfolio: Portfolio, invested_on: Optional[dat
     held = [t for t, w in portfolio.weights.items() if w > 0]
     prices = load_prices(db, held)
     try:
-        valuation = value_portfolio(
+        return value_portfolio(
             portfolio.weights, float(accepted.amount), prices,
             invested_on or accepted.timestamp.date(),
             cash_rate=portfolio.risk_free_rate)
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc))
 
+
+def valuation_response(portfolio: Portfolio, valuation: Valuation, hypothetical: bool) -> dict:
     return {
         "portfolio_id": portfolio.id,
         "investor_id": portfolio.investor_id,
-        "hypothetical": invested_on is not None,
+        "hypothetical": hypothetical,
         **asdict(valuation),
     }
 
@@ -71,10 +81,25 @@ def build_valuation(db: Session, portfolio: Portfolio, invested_on: Optional[dat
 def get_valuation(portfolio_id: str, invested_on: Optional[date] = None, db: Session = Depends(get_db)):
     """Current paper value and drift. Pass invested_on (YYYY-MM-DD) to see a
     hypothetical: what it would be worth had it been invested on that date."""
-    portfolio = db.query(Portfolio).filter(Portfolio.id == portfolio_id).first()
-    if not portfolio:
-        raise HTTPException(status_code=404, detail="Portfolio not found")
-    return build_valuation(db, portfolio, invested_on)
+    portfolio = get_portfolio_or_404(db, portfolio_id)
+    valuation = compute_valuation(db, portfolio, invested_on)
+    return valuation_response(portfolio, valuation, invested_on is not None)
+
+
+@router.get("/portfolios/{portfolio_id}/rebalancing", response_model=RebalancingResponse)
+def get_rebalancing(portfolio_id: str, db: Session = Depends(get_db)):
+    """The trades that would return each holding to its approved weight."""
+    portfolio = get_portfolio_or_404(db, portfolio_id)
+    valuation = compute_valuation(db, portfolio, None)
+    return {
+        "portfolio_id": portfolio.id,
+        "investor_id": portfolio.investor_id,
+        "as_of_date": valuation.as_of_date,
+        "current_value": valuation.current_value,
+        "drift_threshold": valuation.drift_threshold,
+        "rebalancing_suggested": valuation.rebalancing_suggested,
+        "trades": [asdict(trade) for trade in rebalancing_trades(valuation)],
+    }
 
 
 @router.get("/drift-alerts", response_model=list[ValuationResponse])
@@ -83,9 +108,9 @@ def drift_alerts(db: Session = Depends(get_db)):
     alerts = []
     for portfolio in db.query(Portfolio).filter(Portfolio.status == "accepted").all():
         try:
-            valuation = build_valuation(db, portfolio, None)
+            valuation = compute_valuation(db, portfolio, None)
         except HTTPException:
             continue        # no prices or no acceptance record; nothing to report
-        if valuation["rebalancing_suggested"]:
-            alerts.append(valuation)
+        if valuation.rebalancing_suggested:
+            alerts.append(valuation_response(portfolio, valuation, False))
     return alerts

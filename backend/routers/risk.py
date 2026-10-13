@@ -15,6 +15,7 @@ from database import get_db
 from models import Investor, RiskAssessment
 from schemas import RiskAnswers, RiskAssessmentResponse, RiskScoreResponse
 from scoring.scoring import InvalidAnswersError, ScoreResult, score_questionnaire
+from audit_trail import record_audit
 
 router = APIRouter(tags=["Risk"])
 
@@ -55,6 +56,10 @@ def record_assessment(db: Session, investor: Investor, answers: dict[int, int]) 
         **result_fields(result),
     )
     db.add(assessment)
+    record_audit(db, investor.assigned_manager_id, "assessment.recorded", "investor", investor.id,
+                after={"assessment_id": assessment.id, "capacity": result.capacity_score,
+                    "tolerance": result.tolerance_score, "score": result.score,
+                    "bucket": result.constraints.name})
     investor.risk_score = result.constraints.name      # bucket label, for existing screens
     investor.investment_horizon = result.horizon
     return assessment

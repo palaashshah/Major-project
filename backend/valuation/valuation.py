@@ -100,3 +100,29 @@ def value_portfolio(weights: dict, amount: float, prices: pd.DataFrame,
         cash_rate=cash_rate,
         holdings=holdings,
     )
+
+@dataclass(frozen=True)
+class Trade:
+    ticker: str
+    action: str              # "buy" or "sell"
+    amount: float            # rupees
+    current_weight: float
+    target_weight: float
+
+
+def rebalancing_trades(valuation: Valuation, minimum: float = 1.0) -> list[Trade]:
+    """What to buy and sell to return each holding to its approved weight.
+    Trades smaller than `minimum` rupees are left out."""
+    trades = []
+    for holding in valuation.holdings:
+        difference = valuation.current_value * holding.target_weight - holding.value
+        if abs(difference) < minimum:
+            continue
+        trades.append(Trade(
+            ticker=holding.ticker,
+            action="buy" if difference > 0 else "sell",
+            amount=abs(difference),
+            current_weight=holding.current_weight,
+            target_weight=holding.target_weight))
+    trades.sort(key=lambda t: (-t.amount, t.ticker))
+    return trades

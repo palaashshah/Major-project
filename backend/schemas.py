@@ -233,3 +233,19 @@ class AuditLogResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+class TradeResponse(BaseModel):
+    ticker: str
+    action: str                 # "buy" or "sell"
+    amount: float
+    current_weight: float
+    target_weight: float
+
+class RebalancingResponse(BaseModel):
+    portfolio_id: str
+    investor_id: str
+    as_of_date: date
+    current_value: float
+    drift_threshold: float
+    rebalancing_suggested: bool
+    trades: list[TradeResponse]

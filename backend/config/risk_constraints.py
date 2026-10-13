@@ -86,3 +86,9 @@ DRIFT_THRESHOLD = 0.05
 # 30% the portfolios failed the risk-ordering check in 2025-26; 25% is the
 # highest cap that passed both acceptance checks in all three test years.
 ASSET_CAPS: dict[str, float] = {"GOLDBEES.NS": 0.25}
+
+# --- Market data checks ----------------------------------------------------
+# A download failing any of these is rejected: no prices or snapshot are saved.
+MAX_MISSING_SHARE = 0.05     # most missing days tolerated for one instrument
+MAX_DAILY_MOVE = 0.20        # a larger one-day move is treated as a data error
+MIN_PRICE_ROWS = 500         # fewest trading days needed to estimate anything

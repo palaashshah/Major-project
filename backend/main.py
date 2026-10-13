@@ -3,7 +3,7 @@ from fastapi import FastAPI
 
 import models  # registers every table with Base
 from database import Base, engine
-from routers import investors, interactions, risk, optimize, decisions, valuation, audit
+from routers import investors, interactions, risk, optimize, decisions, valuation, audit, reference
 
 # Create any tables that do not exist yet (existing tables are left alone).
 Base.metadata.create_all(bind=engine)
@@ -16,6 +16,7 @@ app.include_router(optimize.router)
 app.include_router(decisions.router)
 app.include_router(valuation.router)
 app.include_router(audit.router)
+app.include_router(reference.router)
 
 app.add_middleware(
     CORSMiddleware,

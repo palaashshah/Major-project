@@ -3,7 +3,7 @@ from datetime import date
 import pandas as pd
 import pytest
 
-from valuation.valuation import value_portfolio
+from valuation.valuation import rebalancing_trades, value_portfolio
 
 
 def prices():
@@ -49,3 +49,9 @@ def test_cash_accrues_at_the_given_rate():
     v = value_portfolio({"LIQUIDBEES.NS": 1.0}, 100.0, flat, date(2025, 1, 1), cash_rate=0.05)
     assert v.current_value == pytest.approx(105.0)
     assert v.holdings[0].basis == "accrual"
+
+def test_rebalancing_trades_restore_the_approved_weights():
+    v = value_portfolio({"A": 0.5, "B": 0.5}, 100.0, prices(), date(2026, 1, 1))
+    trades = {t.ticker: t for t in rebalancing_trades(v)}
+    assert trades["A"].action == "sell" and trades["A"].amount == pytest.approx(25.0)   # 100 down to 75
+    assert trades["B"].action == "buy" and trades["B"].amount == pytest.approx(25.0)    # 50 up to 75
