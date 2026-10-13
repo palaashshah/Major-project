@@ -1,0 +1,11 @@
+,A. gold up to 35% (current),B. gold capped at 30%,C. gold capped at 25%,D. gold capped at 20%
+TUNING: risk rises with score,2/2 years,2/2 years,2/2 years,2/2 years
+TUNING: within volatility cap,10/10,10/10,10/10,10/10
+TUNING: avg volatility surprise,+0.4 pts,+0.2 pts,+0.1 pts,-0.1 pts
+FINAL: risk rises with score,0/1 years,0/1 years,1/1 years,1/1 years
+FINAL: within volatility cap,4/5,5/5,5/5,5/5
+FINAL: avg volatility surprise,+5.9 pts,+5.2 pts,+4.5 pts,+3.7 pts
+all years: avg realised return,15.3%,14.3%,13.3%,12.4%
+all years: beat the Nifty,10/15,10/15,10/15,10/15
+all years: cleared 8%,13/15,13/15,13/15,12/15
+portfolios not possible,0/15,0/15,0/15,0/15

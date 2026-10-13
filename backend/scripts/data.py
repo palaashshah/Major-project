@@ -11,7 +11,8 @@ from sqlalchemy.orm import Session
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from database import SessionLocal, engine, Base
-from models import DataSnapshot, AssetMean, AssetCovariance
+from models import DataSnapshot, AssetMean, AssetCovariance, MarketData, AuditLog
+from config.risk_constraints import MAX_DAILY_MOVE, MAX_MISSING_SHARE, MIN_PRICE_ROWS
 
 UNIVERSE = [
     "NIFTYBEES.NS",     # broad-market equity
@@ -36,7 +37,7 @@ def download_prices(tickers: list[str], period: str = "5y") -> pd.DataFrame:
     Downloads price data for the given tickers and returns
     a DataFrame of closing prices only: dates as index, one column per ticker.
     """
-    data = yf.download(tickers, period = period)
+    data = yf.download(tickers, period=period, auto_adjust=True)
     return (data['Close'])
 
 # prices = download_prices(UNIVERSE)
@@ -46,32 +47,29 @@ def download_prices(tickers: list[str], period: str = "5y") -> pd.DataFrame:
 # d = yf.download("NIFTYBEES.NS", period="5y", auto_adjust=False)
 # print((d['Close'] - d['Adj Close']).describe())
 
-def validate_prices(prices: pd.DataFrame) -> tuple[bool, list[str]]:
+def check_prices(prices: pd.DataFrame) -> tuple[list[str], list[str]]:
     """
-    Checks the price DataFrame for missing values and implausible returns.
-    Returns (is_valid, list_of_issue_descriptions).
+    Checks downloaded prices. Returns (errors, warnings).
+    Errors stop the run; warnings are printed and the run continues.
     """
-    issues = []
+    errors, warnings = [], []
+    if len(prices) < MIN_PRICE_ROWS:
+        errors.append(f"Only {len(prices)} days of prices; at least {MIN_PRICE_ROWS} are needed.")
 
-    # missing values
-    missing_counts = prices.isna().sum()
-    for ticker, count in missing_counts.items():
-        if count > 0:
-            issues.append(f"{ticker}: {count} missing values")
+    for ticker in prices.columns:
+        series = prices[ticker]
+        missing = int(series.isna().sum())
+        share = missing / len(series) if len(series) else 1.0
+        if share > MAX_MISSING_SHARE:
+            errors.append(f"{ticker}: {missing} missing values ({share:.1%}), above the {MAX_MISSING_SHARE:.0%} limit")
+        elif missing:
+            warnings.append(f"{ticker}: {missing} missing values ({share:.1%})")
 
-    # implausible returns
-    daily_returns = prices.pct_change()
-    threshold = 0.20
-    mask = daily_returns.abs() > threshold
+        moves = series.dropna().pct_change().dropna()
+        for day, move in moves[moves.abs() > MAX_DAILY_MOVE].items():
+            errors.append(f"{ticker}: {move:+.1%} move on {day.date()}, above the {MAX_DAILY_MOVE:.0%} limit")
 
-    for ticker in mask.columns:
-        bad_dates = mask.index[mask[ticker]]  # dates where that ticker's mask is True
-        for date in bad_dates:
-            pct = daily_returns.loc[date, ticker] * 100
-            issues.append(f"{ticker}: {pct:.1f}% move on {date.date()}")
-
-    is_valid = len(issues) == 0
-    return is_valid, issues
+    return errors, warnings
 
 def compute_monthly_returns(prices: pd.DataFrame) -> pd.DataFrame:
     """
@@ -169,32 +167,97 @@ def load_snapshot(db: Session, snapshot_id: uuid.UUID) -> tuple[pd.Series, pd.Da
 
     return mu, cov
 
+def save_prices(db: Session, prices: pd.DataFrame) -> int:
+    """
+    Stores daily closing prices, replacing what was stored for these tickers.
+    WHY replace: adjusted prices are revised whenever a dividend is paid, so
+    mixing an old download with a new one would give an inconsistent series.
+    """
+    tickers = list(prices.columns)
+    db.query(MarketData).filter(MarketData.asset_symbol.in_(tickers)).delete(synchronize_session=False)
+
+    rows = []
+    for ticker in tickers:
+        for day, price in prices[ticker].dropna().items():
+            rows.append({
+                "id": f"{ticker}|{day.date()}",
+                "asset_symbol": ticker,
+                "date": day.date(),
+                "close_price": float(price),
+                "data_source": "yfinance",
+            })
+    db.bulk_insert_mappings(MarketData, rows)
+    db.commit()
+    return len(rows)
+
+# def main():
+#     # 1. Ensure DB tables exist
+#     Base.metadata.create_all(bind=engine)
+
+#     prices = download_prices(UNIVERSE)
+#     is_valid, issues = validate_prices(prices)
+#     print(is_valid, issues)
+
+#     monthly_returns = compute_monthly_returns(prices)
+#     mu, cov = compute_mean_and_cov(monthly_returns)
+
+#     db = SessionLocal()
+#     try:
+#         saved = save_prices(db, prices)
+#         print(f"Saved {saved} daily prices.")
+#         print("Saving snapshot to PostgreSQL...")
+#         snapshot_id = save_snapshot(db, mu, cov)
+#         print(f"Successfully saved snapshot! Snapshot ID: {snapshot_id}")
+
+#         # 5. Load back to verify round-trip integrity
+#         print("Verifying round-trip by loading snapshot from database...")
+#         loaded_mu, loaded_cov = load_snapshot(db, snapshot_id)
+        
+#         print("\n--- Loaded Mean Returns ---")
+#         print(loaded_mu)
+#         print("\n--- Loaded Covariance Matrix Shape ---")
+#         print(loaded_cov.shape)
+
+#     finally:
+#         db.close()
+
 def main():
-    # 1. Ensure DB tables exist
     Base.metadata.create_all(bind=engine)
 
     prices = download_prices(UNIVERSE)
-    is_valid, issues = validate_prices(prices)
-    print(is_valid, issues)
-
-    monthly_returns = compute_monthly_returns(prices)
-    mu, cov = compute_mean_and_cov(monthly_returns)
+    errors, warnings = check_prices(prices)
+    for warning in warnings:
+        print(f"warning: {warning}")
 
     db = SessionLocal()
     try:
-        print("Saving snapshot to PostgreSQL...")
+        if errors:
+            for error in errors:
+                print(f"ERROR: {error}")
+            db.add(AuditLog(
+                id=str(uuid.uuid4()),
+                timestamp=datetime.now(timezone.utc),
+                user_id="system",
+                action="data.validation_failed",
+                entity_type="market_data",
+                entity_id="download",
+                reason="; ".join(errors)[:1000],
+            ))
+            db.commit()
+            sys.exit("Price check failed. Nothing was saved; the optimizer keeps using the last good snapshot.")
+
+        saved = save_prices(db, prices)
+        print(f"Saved {saved} daily prices.")
+
+        monthly_returns = compute_monthly_returns(prices)
+        mu, cov = compute_mean_and_cov(monthly_returns)
         snapshot_id = save_snapshot(db, mu, cov)
-        print(f"Successfully saved snapshot! Snapshot ID: {snapshot_id}")
+        print(f"Saved snapshot {snapshot_id}")
 
-        # 5. Load back to verify round-trip integrity
-        print("Verifying round-trip by loading snapshot from database...")
         loaded_mu, loaded_cov = load_snapshot(db, snapshot_id)
-        
-        print("\n--- Loaded Mean Returns ---")
+        print("\n--- Mean returns ---")
         print(loaded_mu)
-        print("\n--- Loaded Covariance Matrix Shape ---")
-        print(loaded_cov.shape)
-
+        print(f"\nCovariance matrix shape: {loaded_cov.shape}")
     finally:
         db.close()
 

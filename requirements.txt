@@ -8,3 +8,5 @@ python-jose
 pandas
 pydantic
 yfinance
+pyportfolioopt
+pytest
